@@ -20,5 +20,5 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 });
 
 Route::prefix('cards')->group(function() {
-    Route::get('/sync', [CardsController::class, 'syncCards']);
+    Route::get('/catalog', [CardsController::class, 'catalog']);
 });
