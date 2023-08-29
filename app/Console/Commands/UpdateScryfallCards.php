@@ -6,6 +6,7 @@ use App\Models\Card;
 use App\Services\ScryfallService;
 use Exception;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 
 class UpdateScryfallCards extends Command
 {
@@ -28,22 +29,24 @@ class UpdateScryfallCards extends Command
      */
     public function handle()
     {
-        Card::truncate();
-        $bulkDataList = ScryfallService::getBulkDataList();
-        if (empty($bulkDataList))
-            throw new Exception('No bulk data found');
-        $bulkDataType = $_ENV['SCRYFALL_DEFAULT_BULK_DATA_TYPE'];
-        $bulkData = array_filter($bulkDataList, fn($bulkData) => $bulkData->type === $bulkDataType)[0];
-        if (empty($bulkData))
-            throw new Exception("No bulk data of type '$bulkDataType' found");
-        $cards = ScryfallService::getBulkDataCards($bulkData);
-        if (empty($cards))
-            throw new Exception('No cards found');
-        foreach ($cards as $card) {
-            $cardData = $card->toArray();
-            $cardData['scryfall_id'] = $card->id;
-            unset($cardData['id']);
-            Card::create($cardData);
-        }
+        DB::transaction(function () {
+            Card::query()->delete();
+            $bulkDataList = ScryfallService::getBulkDataList();
+            if (empty($bulkDataList))
+                throw new Exception('No bulk data found');
+            $bulkDataType = $_ENV['SCRYFALL_DEFAULT_BULK_DATA_TYPE'];
+            $bulkData = array_filter($bulkDataList, fn($bulkData) => $bulkData->type === $bulkDataType)[0];
+            if (empty($bulkData))
+                throw new Exception("No bulk data of type '$bulkDataType' found");
+            $cards = ScryfallService::getBulkDataCards($bulkData);
+            if (empty($cards))
+                throw new Exception('No cards found');
+            foreach ($cards as $card) {
+                $cardData = $card->toArray();
+                $cardData['scryfall_id'] = $card->id;
+                unset($cardData['id']);
+                Card::create($cardData);
+            }
+        });
     }
 }
