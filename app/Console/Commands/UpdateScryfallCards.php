@@ -30,22 +30,27 @@ class UpdateScryfallCards extends Command
     public function handle()
     {
         DB::transaction(function () {
-            Card::query()->delete();
             $bulkDataList = ScryfallService::getBulkDataList();
-            if (empty($bulkDataList))
+            if (empty($bulkDataList)) {
                 throw new Exception('No bulk data found');
+            }
             $bulkDataType = $_ENV['SCRYFALL_DEFAULT_BULK_DATA_TYPE'];
-            $bulkData = array_filter($bulkDataList, fn($bulkData) => $bulkData->type === $bulkDataType)[0];
-            if (empty($bulkData))
+            $bulkData = current(array_filter($bulkDataList, fn ($bulkData) => $bulkData->type === $bulkDataType));
+            if (empty($bulkData)) {
                 throw new Exception("No bulk data of type '$bulkDataType' found");
-            $cards = ScryfallService::getBulkDataCards($bulkData);
-            if (empty($cards))
+            }
+            $scryfallCards = ScryfallService::getBulkDataCards($bulkData);
+            if (empty($scryfallCards)) {
                 throw new Exception('No cards found');
-            foreach ($cards as $card) {
-                $cardData = $card->toArray();
-                $cardData['scryfall_id'] = $card->id;
-                unset($cardData['id']);
-                Card::create($cardData);
+            }
+            foreach ($scryfallCards as $scryfallCard) {
+                $existingCard = Card::where('scryfall_id', $scryfallCard->id)->first();
+                if (empty($existingCard)) {
+                    $newCardData = $scryfallCard->toArray();
+                    $newCardData['scryfall_id'] = $scryfallCard->id;
+                    unset($newCardData['id']);
+                    Card::create($newCardData);
+                }
             }
         });
     }
